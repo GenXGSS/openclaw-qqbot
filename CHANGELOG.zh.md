@@ -4,6 +4,32 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [2.0.4] - 2026-09-11
+
+### 新增
+
+- **Send-only 网关降级**：出站 `sendText` / `sendMedia` / `sendVoice` / `sendVideo` 在机器人未运行时懒加载构建 send-only 网关（不含中间件、会话与引用索引），缓存复用，并在无网关日志时回退到真实 logger。
+
+### 变更
+
+- **拆分 dispatch 投递通道**：启用 block streaming，将 static-blocks / native-stream 投递拆分到独立的 `dispatch-deliver` 通道，新增 reply-options 事件订阅。
+- **`send-proactive` 脚本**：更新为指向迁移后的 `features/proactive` 模块。
+- **README**：安装/升级流程改为基于交互式向导（`npx -y @tencent-connect/openclaw-qqbot-cli@latest`）。
+
+### 改进
+
+- **调试日志**：在 debug 日志中预览出站文本，便于排查问题。
+
+### 修复
+
+- **升级脚本**：安装/更新时传递 `--accept-capabilities` 参数，适配 OpenClaw 2026.8.0+ 引入的 capability consent 校验（此前会报 "requires capability consent" 失败）。
+
+### 移除
+
+- 移除 README 中的 Star History 图表。
+
+---
+
 ## [2.0.3] - 2026-08-25
 
 ### 修复
