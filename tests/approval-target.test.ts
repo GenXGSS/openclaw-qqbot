@@ -1,46 +1,19 @@
 /**
  * Unit tests for the approval delivery target parser (resolveTarget).
  *
- * Covers the parsing logic of resolveTarget in src/features/approval-handler.ts.
- * The implementation is inlined to keep the module's internals private while
- * guaranteeing the tests stay in sync with the shipped code.
+ * Covers resolveTarget exported from src/features/approval-utils.ts — the very
+ * implementation shipped in approval-handler.ts is imported here, so these
+ * tests exercise the production code path, not a copy of it.
  *
  * Run:  npx tsx tests/approval-target.test.ts
  */
 
 import assert from "node:assert";
+import { resolveTarget } from "../src/features/approval-utils.js";
 
 let passed = 0;
 let failed = 0;
 const failedTests: string[] = [];
-
-// ── Logic under test (kept in sync with src/features/approval-handler.ts) ──
-
-interface Target {
-  type: "c2c" | "group";
-  id: string;
-}
-
-function resolveTarget(
-  sessionKey: string | null | undefined,
-  turnSourceTo: string | null | undefined
-): Target | null {
-  // Try sessionKey and turnSourceTo independently. A DM (or cron/API-triggered)
-  // session may be bound to a channel-agnostic session key (e.g. agent:main:main
-  // or agent:main:cron:<uuid>:run:<uuid>); in that case sessionKey carries no
-  // qqbot segment and we must fall back to turnSourceTo, otherwise the approval
-  // card is silently dropped (shows up as "no QQ target" in the log).
-  const parse = (
-    value: string | null | undefined
-  ): Target | null => {
-    if (!value) return null;
-    const m = value.match(/qqbot:(c2c|direct|group):([A-F0-9]+)/i);
-    if (!m) return null;
-    const type = m[1]!.toLowerCase() === "group" ? "group" : "c2c";
-    return { type, id: m[2]! };
-  };
-  return parse(sessionKey) ?? parse(turnSourceTo);
-}
 
 // ── Test helpers ──
 
@@ -89,6 +62,13 @@ test("qqbot:group:ID -> group target", () => {
   assert.deepStrictEqual(
     resolveTarget(`agent:main:qqbot:group:${GROUP_ID}`, null),
     { type: "group", id: GROUP_ID }
+  );
+});
+
+test("decimal group id (real QQ group numbers) -> group target", () => {
+  assert.deepStrictEqual(
+    resolveTarget("agent:main:qqbot:group:123456789", null),
+    { type: "group", id: "123456789" }
   );
 });
 
