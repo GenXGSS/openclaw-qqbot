@@ -175,13 +175,21 @@ function resolveTarget(
   sessionKey: string | null | undefined,
   turnSourceTo: string | null | undefined
 ): { type: "c2c" | "group"; id: string } | null {
-  // 优先从 sessionKey 解析（如 agent:main:qqbot:direct:OPENID）
-  const sk = sessionKey ?? turnSourceTo;
-  if (!sk) return null;
-  const m = sk.match(/qqbot:(c2c|direct|group):([A-F0-9]+)/i);
-  if (!m) return null;
-  const type = m[1]!.toLowerCase() === "group" ? "group" : "c2c";
-  return { type, id: m[2]! };
+  // Try sessionKey and turnSourceTo independently. A DM (or cron/API-triggered)
+  // session may be bound to a channel-agnostic session key (e.g. agent:main:main
+  // or agent:main:cron:<uuid>:run:<uuid>); in that case sessionKey carries no
+  // qqbot segment and we must fall back to turnSourceTo, otherwise the approval
+  // card is silently dropped (shows up as "no QQ target" in the log).
+  const parse = (
+    value: string | null | undefined
+  ): { type: "c2c" | "group"; id: string } | null => {
+    if (!value) return null;
+    const m = value.match(/qqbot:(c2c|direct|group):([A-F0-9]+)/i);
+    if (!m) return null;
+    const type = m[1]!.toLowerCase() === "group" ? "group" : "c2c";
+    return { type, id: m[2]! };
+  };
+  return parse(sessionKey) ?? parse(turnSourceTo);
 }
 
 // ─── Handler 类 ──────────────────────────────────────────────
@@ -337,7 +345,7 @@ export class QQBotApprovalHandler {
     const turnSourceTo = (request.request as any).turnSourceTo;
     const target = resolveTarget(sessionKey, turnSourceTo);
     if (!target) {
-      log?.info(`[qqbot:${accountId}] approval-handler: no QQ target for ${shortId} (session=${sessionKey})`);
+      log?.warn(`[qqbot:${accountId}] approval-handler: no QQ target for ${shortId} (session=${sessionKey}, turn=${turnSourceTo})`);
       return;
     }
 
