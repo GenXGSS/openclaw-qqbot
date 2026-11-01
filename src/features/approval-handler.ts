@@ -158,16 +158,18 @@ function buildApprovalKeyboard(
     },
     group_id: "approval",
   });
+  // 核心在 request.allowedDecisions 中声明该请求实际支持的决策；渲染不在集合内的
+  // 按钮只会让用户点了必失败。字段缺失时维持原三按钮行为。
+  const can = (decision: string) =>
+    !allowedDecisions || allowedDecisions.includes(decision);
   return {
     content: {
       rows: [
         {
           buttons: [
-            makeBtn("allow",  "✅ 允许一次", "已允许",    `approve:${approvalId}:allow-once`,  1),
-            // 核心在 request.allowedDecisions 中声明可用决策；ask=always 等场景不含
-            // allow-always，此时渲染该按钮只会让用户点了必失败。字段缺失时维持原行为。
-            ...((allowedDecisions && !allowedDecisions.includes("allow-always") ? [] : [makeBtn("always", "⭐ 始终允许", "已始终允许", `approve:${approvalId}:allow-always`, 1)])),
-            makeBtn("deny",   "❌ 拒绝",     "已拒绝",    `approve:${approvalId}:deny`,         0),
+            ...(can("allow-once") ? [makeBtn("allow", "✅ 允许一次", "已允许", `approve:${approvalId}:allow-once`, 1)] : []),
+            ...(can("allow-always") ? [makeBtn("always", "⭐ 始终允许", "已始终允许", `approve:${approvalId}:allow-always`, 1)] : []),
+            ...(can("deny") ? [makeBtn("deny", "❌ 拒绝", "已拒绝", `approve:${approvalId}:deny`, 0)] : []),
           ],
         },
       ],

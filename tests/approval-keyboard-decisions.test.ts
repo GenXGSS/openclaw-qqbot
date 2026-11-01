@@ -47,16 +47,18 @@ function buildApprovalKeyboard(
     },
     group_id: "approval",
   });
+  // 核心在 request.allowedDecisions 中声明该请求实际支持的决策；渲染不在集合内的
+  // 按钮只会让用户点了必失败。字段缺失时维持原三按钮行为。
+  const can = (decision: string) =>
+    !allowedDecisions || allowedDecisions.includes(decision);
   return {
     content: {
       rows: [
         {
           buttons: [
-            makeBtn("allow",  "✅ 允许一次", "已允许",    `approve:${approvalId}:allow-once`,  1),
-            // 核心在 request.allowedDecisions 中声明可用决策；ask=always 等场景不含
-            // allow-always，此时渲染该按钮只会让用户点了必失败。字段缺失时维持原行为。
-            ...((allowedDecisions && !allowedDecisions.includes("allow-always") ? [] : [makeBtn("always", "⭐ 始终允许", "已始终允许", `approve:${approvalId}:allow-always`, 1)])),
-            makeBtn("deny",   "❌ 拒绝",     "已拒绝",    `approve:${approvalId}:deny`,         0),
+            ...(can("allow-once") ? [makeBtn("allow", "✅ 允许一次", "已允许", `approve:${approvalId}:allow-once`, 1)] : []),
+            ...(can("allow-always") ? [makeBtn("always", "⭐ 始终允许", "已始终允许", `approve:${approvalId}:allow-always`, 1)] : []),
+            ...(can("deny") ? [makeBtn("deny", "❌ 拒绝", "已拒绝", `approve:${approvalId}:deny`, 0)] : []),
           ],
         },
       ],
@@ -136,15 +138,15 @@ test("三按钮时各按钮回调数据正确", () => {
   ]);
 });
 
-test("unavailableDecisions 形态（核心已过滤后的数组）正确处理", () => {
-  // 核心发送的 allowedDecisions 是已过滤后的最终数组，直接判断 includes
+test("deny-only 场景（allowedDecisions=[\"deny\"]）→ 只渲染拒绝按钮", () => {
   const kb = buildApprovalKeyboard("t5", ["deny"]);
-  assert.deepStrictEqual(buttonIds(kb), ["allow", "deny"]);
+  assert.deepStrictEqual(buttonIds(kb), ["deny"]);
 });
 
-test("空数组 → 不渲染 always（fail-safe）", () => {
+
+test("空数组（无任何可用决策）→ 不渲染任何按钮", () => {
   const kb = buildApprovalKeyboard("t6", []);
-  assert.deepStrictEqual(buttonIds(kb), ["allow", "deny"]);
+  assert.deepStrictEqual(buttonIds(kb), []);
 });
 
 console.log("\n调用点：allowedDecisions 提取\n");
